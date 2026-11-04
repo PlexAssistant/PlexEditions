@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.3] — 2026-11-04
+
+### Added
+
+- The crate grows a library target, so PlexAssistant calls the same
+  logic as a dependency. The `editions` binary and its behavior are
+  unchanged.
+- `Config::from_env_with_url` falls back to a default `PLEX_URL` for
+  embedders that run next to Plex; `Config::from_env` still requires it.
+- `startup::await_ready` is the retry loop `editions new` uses to wait
+  for an unclaimed or down server.
+
 ## [0.1.2] — 2026-11-04
 
 ### Added
@@ -30,6 +42,7 @@
 - `--dry-run` prints the edition that would be written.
 - `EDITION_LANG` accepts `en`, `zh`, `zh-TW`, `ja`, `ko`, `ar`, `fr`, `ru`, and `es`. Labels are in `locales/edition.json`.
 
+[0.1.3]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.3
 [0.1.2]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.2
 [0.1.1]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.1
 [0.1.0]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.0

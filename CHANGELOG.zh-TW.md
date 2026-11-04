@@ -1,5 +1,13 @@
 # 變更紀錄
 
+## [0.1.3] — 2026-11-04
+
+### 新增
+
+- crate 長出 library target，PlexAssistant 以依賴引用同一份邏輯。`editions` 二進位的行為不變。
+- `Config::from_env_with_url` 讓未設定的 `PLEX_URL` 回退到傳入的預設位址，給與 Plex 同機的嵌入方用；`Config::from_env` 仍然必須明確設定。
+- `startup::await_ready` 是 `editions new` 等待未綁定或未啟動伺服器的重試迴圈。
+
 ## [0.1.2] — 2026-11-04
 
 ### 新增
@@ -30,6 +38,7 @@
 - `--dry-run` 印出將寫入的 Edition，不改伺服器。
 - `EDITION_LANG` 接受 `en`、`zh`、`zh-TW`、`ja`、`ko`、`ar`、`fr`、`ru`、`es`。譯名在 `locales/edition.json`。
 
+[0.1.3]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.3
 [0.1.2]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.2
 [0.1.1]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.1
 [0.1.0]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.0
