@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use tracing::info;
 
 use crate::api::Client;
@@ -117,14 +115,8 @@ async fn clear_if_present(config: &Config, client: &Client, movie: &Movie) -> Re
     Ok(Action::Wrote)
 }
 
-pub fn backoff(attempt: u32) -> Duration {
-    let shift = attempt.min(6);
-    Duration::from_secs(1_u64 << shift)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::model::Library;
     use std::collections::HashSet;
 
@@ -154,12 +146,5 @@ mod tests {
             .collect();
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].title, "Movies");
-    }
-
-    #[test]
-    fn backoff_doubles_then_caps() {
-        assert_eq!(backoff(0), Duration::from_secs(1));
-        assert_eq!(backoff(3), Duration::from_secs(8));
-        assert_eq!(backoff(10), Duration::from_secs(64));
     }
 }

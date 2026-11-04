@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
 use crate::i18n::Language;
@@ -73,12 +75,13 @@ impl Config {
         if plex_url.is_empty() {
             return Err(Error::Config("PLEX_URL is empty".into()));
         }
-        let plex_token = env::var("PLEX_TOKEN")
-            .map(|value| value.trim().to_string())
-            .map_err(|_| Error::Config("PLEX_TOKEN is required".into()))?;
-        if plex_token.is_empty() {
-            return Err(Error::Config("PLEX_TOKEN is empty".into()));
-        }
+        // An explicit token wins. Otherwise read it from the Plex data
+        // directory, so a container can mount that directory instead of
+        // copying the token into its environment.
+        let plex_token = match env::var("PLEX_TOKEN") {
+            Ok(value) if !value.trim().is_empty() => value.trim().to_string(),
+            _ => token_from_config(&plex_config_dir()?)?,
+        };
         let language = Language::parse(&env::var("EDITION_LANG").unwrap_or_else(|_| "en".into()))?;
         let modules = parse_modules(
             &env::var("EDITION_MODULES").unwrap_or_else(|_| DEFAULT_MODULES.join(";")),
@@ -97,6 +100,49 @@ impl Config {
             separator,
             dry_run: false,
         })
+    }
+}
+
+/// Where Plex keeps `Preferences.xml`. `PLEX_CONFIG_DIR` points straight at
+/// the directory that holds the file; unset, the usual data directory is
+/// assumed and the `Library/Application Support/...` tail is appended.
+fn plex_config_dir() -> Result<PathBuf> {
+    match env::var("PLEX_CONFIG_DIR") {
+        Ok(value) if !value.trim().is_empty() => Ok(PathBuf::from(value.trim())),
+        _ => Ok(PathBuf::from("/config").join(PREFERENCES_TAIL)),
+    }
+}
+
+const PREFERENCES_TAIL: &str = "Library/Application Support/Plex Media Server";
+
+fn token_from_config(dir: &Path) -> Result<String> {
+    let path = dir.join("Preferences.xml");
+    let text = fs::read_to_string(&path).map_err(|_| {
+        Error::Config(format!(
+            "PLEX_TOKEN is unset and {} cannot be read; set PLEX_TOKEN or PLEX_CONFIG_DIR",
+            path.display()
+        ))
+    })?;
+    plex_token_from_preferences(&text).ok_or_else(|| {
+        Error::Config(format!(
+            "{} has no PlexOnlineToken; the server may be unclaimed",
+            path.display()
+        ))
+    })
+}
+
+/// `PlexOnlineToken` from a Plex `Preferences.xml`. The file is one element
+/// with every setting as an attribute, so the value sits between quotes.
+pub fn plex_token_from_preferences(text: &str) -> Option<String> {
+    let key = "PlexOnlineToken=\"";
+    let start = text.find(key)? + key.len();
+    let rest = text.get(start..)?;
+    let end = rest.find('"')?;
+    let token = &rest[..end];
+    if token.is_empty() {
+        None
+    } else {
+        Some(token.to_string())
     }
 }
 
@@ -137,5 +183,22 @@ mod tests {
     #[test]
     fn rejects_unknown_modules() {
         assert!(parse_modules("not-a-module").is_err());
+    }
+
+    #[test]
+    fn reads_the_token_attribute() {
+        let text = r#"<?xml version="1.0" encoding="utf-8"?>
+<Preferences MachineIdentifier="abc" PlexOnlineToken="tok-1" FriendlyName="Dev"/>"#;
+        assert_eq!(plex_token_from_preferences(text).as_deref(), Some("tok-1"));
+    }
+
+    #[test]
+    fn ignores_a_preferences_file_without_a_token() {
+        let text = r#"<Preferences MachineIdentifier="abc" FriendlyName="Dev"/>"#;
+        assert_eq!(plex_token_from_preferences(text), None);
+        assert_eq!(
+            plex_token_from_preferences(r#"<Preferences PlexOnlineToken=""/>"#),
+            None
+        );
     }
 }

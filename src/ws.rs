@@ -11,25 +11,42 @@ use tracing::info;
 use crate::api::Client;
 use crate::config::Config;
 use crate::error::Result;
-use crate::run::{self, backoff};
+use crate::run;
 
 /// How long to let the server settle after a timeline frame before the
 /// metadata is fetched. Analysis trails item creation by a few seconds.
 const SETTLE: Duration = Duration::from_secs(3);
 
-/// Listen until the process is stopped. A dropped socket reconnects with backoff.
+/// How long to wait before trying the socket again. A dropped connection
+/// is followed by a full pass over the libraries, so reconnecting quickly
+/// would only repeat work the next pass does anyway.
+const RECONNECT_WAIT: Duration = Duration::from_secs(30 * 60);
+
+/// Listen until the process is stopped. Each connection is preceded by a
+/// pass that writes editions for movies still missing one, which also
+/// covers whatever was scanned while the socket was down.
 pub async fn listen(config: &Config, client: &Client) -> Result<()> {
-    let mut attempt = 0_u32;
     loop {
+        catch_up(config, client).await;
         match session(config, client).await {
-            Ok(()) => attempt = 0,
+            Ok(()) => {}
             Err(err) => {
-                let wait = backoff(attempt);
-                info!(error = %err, wait_secs = wait.as_secs(), "websocket disconnected");
-                sleep(wait).await;
-                attempt = attempt.saturating_add(1);
+                info!(error = %err, wait_secs = RECONNECT_WAIT.as_secs(), "websocket disconnected");
+                sleep(RECONNECT_WAIT).await;
             }
         }
+    }
+}
+
+async fn catch_up(config: &Config, client: &Client) {
+    match run::run(config, client, run::Mode::All).await {
+        Ok(stats) => info!(
+            written = stats.written,
+            skipped = stats.skipped,
+            failed = stats.failed,
+            "caught up"
+        ),
+        Err(err) => info!(error = %err, "catch-up skipped"),
     }
 }
 

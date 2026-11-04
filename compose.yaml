@@ -1,48 +1,25 @@
-# PlexEditions — write movie edition titles on a Plex server.
+# Writes movie edition titles on a Plex server. See README.md for the
+# settings and commands.
 #
-# The container only talks to Plex over HTTP and the notification socket.
-# It does not read your media files, so there is no volume to mount.
-#
-# Quick start:
-#   1. Set PLEX_URL to the server, as seen from this container
-#   2. Set PLEX_TOKEN (Plex → Settings → Account → Authorized Devices)
+#   1. Point /config at the Plex data directory
+#   2. Set PLEX_URL to an address this container can reach
 #   3. docker compose up -d
-#   4. docker compose logs -f   # one line per movie as it is written
-#
-# The default command is `new`: it waits for newly scanned movies and
-# writes an edition for each. It does not touch movies already in the
-# library. To fill those in once, run:
-#   docker compose run --rm editions all --dry-run
-#   docker compose run --rm editions all
-# `reset` clears every edition in movie libraries, including ones typed
-# by hand, and unlocks the field.
-#
-# To build the image from this checkout instead of pulling it, replace
-# the image line with:
-#   build: .
 services:
   editions:
     # pin a release with its tag, e.g. :v0.1.1 (see CHANGELOG.md)
     image: ghcr.io/plexassistant/plexeditions:latest
     environment:
-      # base URL of the Plex server, no trailing slash.
-      # 127.0.0.1 points at this container, not the host: use the host's
-      # LAN address, a sibling container's name, or uncomment `network_mode`
-      # below and keep the address as written.
+      # 127.0.0.1 is this container. Use the host's address, or a sibling
+      # container's name, or uncomment network_mode below.
       - PLEX_URL=http://127.0.0.1:32400
-      # required; the container cannot start without it
-      - PLEX_TOKEN=
-      # order of the edition text; a module with no value is dropped.
-      # names split on ; or ；, and the Chinese names are accepted too:
-      # 片源版本;分辨率;动态范围
+      # - PLEX_TOKEN=
       # - EDITION_MODULES=source;resolution;dynamicrange
       # en, zh, zh-TW, ja, ko, ar, fr, ru, es
       # - EDITION_LANG=zh
-      # movie libraries to leave alone, split the same way
       # - EDITION_SKIP_LIBRARIES=
-      # joins the modules; a single space is fine
       # - EDITION_SEPARATOR= ·
-    # `new` holds one websocket open, so a restart policy matters
+    volumes:
+      # the directory the Plex container mounts as /config
+      - /path/to/plex/config:/config:ro
     restart: unless-stopped
-    # share the host network when Plex only listens on 127.0.0.1
     # network_mode: host

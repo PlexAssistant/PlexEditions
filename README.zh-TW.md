@@ -36,6 +36,7 @@ Edition 功能的思路受 [edition-manager-for-plex](https://github.com/x1ao4/e
 ```
 PLEX_URL=http://127.0.0.1:32400
 PLEX_TOKEN=
+PLEX_CONFIG_DIR=
 EDITION_MODULES=source;resolution;dynamicrange
 EDITION_LANG=zh
 EDITION_SKIP_LIBRARIES=
@@ -44,6 +45,8 @@ EDITION_SEPARATOR= ·
 
 `EDITION_MODULES` 與 `EDITION_SKIP_LIBRARIES` 以 `;` 或 `；` 分隔。`EDITION_LANG` 為 `en`、`zh`、`zh-TW`、`ja`、`ko`、`ar`、`fr`、`ru`、`es`。劇集不處理。設定名是簡體，與程式接受的字串一致。譯名在 `locales/edition.json`。
 
+`PLEX_TOKEN` 留空時，從 `PLEX_CONFIG_DIR` 下的 `Preferences.xml` 讀取 `PlexOnlineToken`。未設定該目錄時，讀 `/config/Library/Application Support/Plex Media Server`，[compose.yaml](compose.yaml) 就是把 Plex 的資料目錄掛在這裡。環境變數裡給了 token 就直接用。
+
 ```
 editions all --dry-run
 editions all
@@ -51,9 +54,9 @@ editions reset
 editions new
 ```
 
-`all` 與 `reset` 跑完即結束。`new` 聽 Plex 的通知 socket，斷線後重連。沒有這條 socket 時，用 cron 跑 `all`。
+`all` 與 `reset` 跑完即結束。`new` 會一直跑：連上之前，以及 socket 斷線 30 分鐘後，先為還沒有 Edition 的電影補上，再開始監聽。監聽期間掃進的電影，在 Plex 回報時寫入。還讀不到 token 或伺服器沒有回應時，也是每 30 分鐘重試一次，不會退出，所以容器可以比 Plex 完成登入或啟動更早起來。
 
-同樣的設定在 [compose.yaml](compose.yaml)，預設跑 `new` 並在退出後重啟。`PLEX_URL` 必須從容器內連得到；`127.0.0.1` 只在容器與宿主共用網路時有效。已入庫的電影用 `docker compose run --rm editions all` 補上。
+`PLEX_URL` 必須從容器內連得到。`127.0.0.1` 指向容器自己，除非容器與宿主共用網路。
 
 ## 授權
 

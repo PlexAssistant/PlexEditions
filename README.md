@@ -36,6 +36,7 @@ An existing edition is left unchanged. `reset` clears every non-empty edition in
 ```
 PLEX_URL=http://127.0.0.1:32400
 PLEX_TOKEN=
+PLEX_CONFIG_DIR=
 EDITION_MODULES=source;resolution;dynamicrange
 EDITION_LANG=zh
 EDITION_SKIP_LIBRARIES=
@@ -44,6 +45,8 @@ EDITION_SEPARATOR= ·
 
 `EDITION_MODULES` and `EDITION_SKIP_LIBRARIES` split on `;` or `；`. `EDITION_LANG` is `en`, `zh`, `zh-TW`, `ja`, `ko`, `ar`, `fr`, `ru`, or `es`. Shows are not included. Labels live in `locales/edition.json`.
 
+Leave `PLEX_TOKEN` empty to read `PlexOnlineToken` from `Preferences.xml` under `PLEX_CONFIG_DIR`. When that is unset, the file is read from `/config/Library/Application Support/Plex Media Server`, which is where [compose.yaml](compose.yaml) mounts the Plex data directory. A token set in the environment is used as given.
+
 ```
 editions all --dry-run
 editions all
@@ -51,9 +54,9 @@ editions reset
 editions new
 ```
 
-`all` and `reset` exit when the libraries are done. `new` listens on the Plex notification socket and reconnects if it drops. Without that socket, run `all` from cron.
+`all` and `reset` exit when the libraries are done. `new` stays up: before it connects, and again 30 minutes after the socket drops, it writes editions for movies that do not have one, then listens. A movie scanned while it is listening is written as Plex reports it. The same 30 minutes applies while the token cannot be read or the server does not answer, so the container can start before Plex is claimed or up.
 
-The same settings are in [compose.yaml](compose.yaml), which runs `new` and restarts it. `PLEX_URL` has to be reachable from the container; `127.0.0.1` only works when the container shares the host network. Fill the libraries already scanned with `docker compose run --rm editions all`.
+`PLEX_URL` has to be reachable from the container. `127.0.0.1` points at the container itself unless it shares the host network.
 
 ## License
 
