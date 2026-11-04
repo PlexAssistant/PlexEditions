@@ -58,9 +58,9 @@ impl Client {
         Ok(model::movies_from_section(&body, &library.title))
     }
 
-    pub async fn movie(&self, rating_key: &str, library: &str) -> Result<Option<Movie>> {
+    pub async fn movie(&self, rating_key: &str) -> Result<Option<Movie>> {
         let body = self.get(&format!("/library/metadata/{rating_key}")).await?;
-        Ok(model::movie_from_metadata(&body, library))
+        Ok(model::movie_from_metadata(&body))
     }
 
     pub async fn set_edition(&self, rating_key: &str, title: &str) -> Result<()> {

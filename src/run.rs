@@ -57,21 +57,22 @@ pub async fn run(config: &Config, client: &Client, mode: Mode) -> Result<Stats> 
     Ok(stats)
 }
 
-pub async fn apply_one(
-    config: &Config,
-    client: &Client,
-    rating_key: &str,
-    library: &str,
-) -> Result<()> {
-    let Some(movie) = client.movie(rating_key, library).await? else {
-        return Ok(());
+/// Process one movie by id. `Ok(true)` means no further attempt is needed:
+/// an edition was written, one was already present, or the movie is out of
+/// scope. `Ok(false)` means nothing could be composed yet, so the caller
+/// may retry later.
+pub async fn apply_one(config: &Config, client: &Client, rating_key: &str) -> Result<bool> {
+    let Some(movie) = client.movie(rating_key).await? else {
+        return Ok(true);
     };
-    if config.skip_libraries.contains(&movie.library) && !movie.library.is_empty() {
-        return Ok(());
+    if !movie.library.is_empty() && config.skip_libraries.contains(&movie.library) {
+        return Ok(true);
     }
-    apply(config, client, Mode::All, &movie).await.map(|_| ())
+    let action = apply(config, client, Mode::All, &movie).await?;
+    Ok(action == Action::Wrote || movie.edition_title.is_some())
 }
 
+#[derive(PartialEq, Eq)]
 enum Action {
     Wrote,
     Skipped,

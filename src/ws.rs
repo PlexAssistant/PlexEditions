@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::time::Duration;
 
 use futures_util::StreamExt;
@@ -11,6 +12,10 @@ use crate::api::Client;
 use crate::config::Config;
 use crate::error::Result;
 use crate::run::{self, backoff};
+
+/// How long to let the server settle after a timeline frame before the
+/// metadata is fetched. Analysis trails item creation by a few seconds.
+const SETTLE: Duration = Duration::from_secs(3);
 
 /// Listen until the process is stopped. A dropped socket reconnects with backoff.
 pub async fn listen(config: &Config, client: &Client) -> Result<()> {
@@ -38,6 +43,7 @@ async fn session(config: &Config, client: &Client) -> Result<()> {
         .map_err(|err| crate::error::Error::WebSocket(err.to_string()))?;
     info!("websocket connected");
     let (_, mut incoming) = socket.split();
+    let mut done: HashSet<String> = HashSet::new();
     while let Some(message) = incoming.next().await {
         let message = message.map_err(|err| crate::error::Error::WebSocket(err.to_string()))?;
         let text = match message {
@@ -47,20 +53,21 @@ async fn session(config: &Config, client: &Client) -> Result<()> {
             tokio_tungstenite::tungstenite::Message::Close(_) => break,
             _ => continue,
         };
-        if let Some(event) = parse_event(text.as_str()) {
-            if event.kind != "library.new" || event.item_type != "movie" {
-                continue;
+        let Some(event) = parse_event(&text) else {
+            continue;
+        };
+        if !event.is_new_movie() || done.contains(&event.rating_key) {
+            continue;
+        }
+        sleep(SETTLE).await;
+        match run::apply_one(config, client, &event.rating_key).await {
+            // An empty edition means the media tree was not ready yet;
+            // a later timeline frame for the same item retries.
+            Ok(true) => {
+                done.insert(event.rating_key);
             }
-            if config.skip_libraries.contains(&event.library) {
-                continue;
-            }
-            // A new item can arrive before its media tree is ready.
-            sleep(Duration::from_secs(2)).await;
-            if let Err(err) =
-                run::apply_one(config, client, &event.rating_key, &event.library).await
-            {
-                info!(rating_key = %event.rating_key, error = %err, "new movie skipped");
-            }
+            Ok(false) => {}
+            Err(err) => info!(rating_key = %event.rating_key, error = %err, "movie skipped"),
         }
     }
     Ok(())
@@ -77,57 +84,53 @@ pub fn websocket_url(base: &str, token: &str) -> String {
     format!("{ws}/:/websockets/notifications?X-Plex-Token={token}")
 }
 
+/// A library timeline frame: how this server reports new and changed items.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Event {
-    pub kind: String,
     pub rating_key: String,
-    pub item_type: String,
-    pub library: String,
+    pub metadata_state: String,
+    pub state: i64,
 }
 
-/// Plex notification frames carry `NotificationContainer`, not the webhook shape.
+impl Event {
+    /// A movie reported as just created, or the final frame once its
+    /// metadata is loaded. Either is a moment the edition may be writable.
+    pub fn is_new_movie(&self) -> bool {
+        self.metadata_state == "created" || self.state == 5
+    }
+}
+
+/// The socket carries `NotificationContainer` frames; a new movie shows up
+/// as a timeline entry with `itemID`, `type` 1, and a `metadataState`.
+/// Verified against 1.43.5 by capturing frames during a library scan.
 pub fn parse_event(text: &str) -> Option<Event> {
     let body: Value = serde_json::from_str(text).ok()?;
     let container = body.get("NotificationContainer")?;
-    let kind = container.get("type")?.as_str()?.to_string();
-    let entry = container
-        .get("PlaySessionStateNotification")
-        .or_else(|| container.get("ActivityNotification"))
-        .or_else(|| container.get("TimelineEntry"))
-        .and_then(Value::as_array)
-        .and_then(|entries| entries.first())
-        .cloned()
-        .unwrap_or(Value::Null);
-    let rating_key = json_id(container.get("ratingKey"))
-        .or_else(|| json_id(entry.get("ratingKey")))
-        .unwrap_or_default();
-    let item_type = container
-        .get("itemType")
-        .or_else(|| entry.get("type"))
-        .or_else(|| entry.get("metadataType"))
-        .and_then(Value::as_str)
-        .unwrap_or("movie")
-        .to_string();
-    let library = container
-        .get("librarySectionTitle")
-        .or_else(|| entry.get("librarySectionTitle"))
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
-    Some(Event {
-        kind,
-        rating_key,
-        item_type,
-        library,
-    })
-}
-
-fn json_id(value: Option<&Value>) -> Option<String> {
-    match value? {
-        Value::String(text) => Some(text.clone()),
-        Value::Number(number) => Some(number.to_string()),
-        _ => None,
+    if container.get("type")?.as_str()? != "timeline" {
+        return None;
     }
+    let entry = container.get("TimelineEntry")?.as_array()?.first()?;
+    if entry.get("identifier")?.as_str()? != "com.plexapp.plugins.library" {
+        return None;
+    }
+    // metadata_type 1 is a movie; shows, seasons, and episodes are ignored.
+    if entry.get("type")?.as_i64()? != 1 {
+        return None;
+    }
+    let rating_key = match entry.get("itemID")? {
+        Value::String(text) => text.clone(),
+        Value::Number(number) => number.to_string(),
+        _ => return None,
+    };
+    Some(Event {
+        rating_key,
+        metadata_state: entry
+            .get("metadataState")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string(),
+        state: entry.get("state").and_then(Value::as_i64).unwrap_or(-1),
+    })
 }
 
 #[cfg(test)]
@@ -144,24 +147,25 @@ mod tests {
     }
 
     #[test]
-    fn reads_a_library_new_frame() {
-        let text = r#"{"NotificationContainer":{"type":"timeline","size":1,"TimelineEntry":[{"identifier":"com.plexapp.plugins.library","state":0,"itemID":42,"type":1,"title":"Example"}]}}"#;
+    fn reads_a_created_movie_frame() {
+        let text = r#"{"NotificationContainer":{"type":"timeline","size":1,"TimelineEntry":[{"identifier":"com.plexapp.plugins.library","sectionID":"2","itemID":"1029","type":1,"title":"","state":0,"metadataState":"created","updatedAt":1793782739}]}}"#;
         let event = parse_event(text).unwrap();
-        assert_eq!(event.kind, "timeline");
+        assert_eq!(event.rating_key, "1029");
+        assert!(event.is_new_movie());
     }
 
     #[test]
-    fn reads_rating_key_when_present() {
-        let text = r#"{"NotificationContainer":{"type":"library.new","ratingKey":"42","itemType":"movie","librarySectionTitle":"Movies"}}"#;
+    fn reads_the_final_metadata_frame() {
+        let text = r#"{"NotificationContainer":{"type":"timeline","size":1,"TimelineEntry":[{"identifier":"com.plexapp.plugins.library","sectionID":"2","itemID":"1029","type":1,"title":"Second Movie (2026)","state":5,"updatedAt":1793782739}]}}"#;
         let event = parse_event(text).unwrap();
-        assert_eq!(
-            event,
-            Event {
-                kind: "library.new".into(),
-                rating_key: "42".into(),
-                item_type: "movie".into(),
-                library: "Movies".into(),
-            }
-        );
+        assert!(event.is_new_movie());
+    }
+
+    #[test]
+    fn ignores_activity_frames_and_episodes() {
+        let activity = r#"{"NotificationContainer":{"type":"activity","size":1,"ActivityNotification":[{"event":"started","uuid":"x","Activity":{"type":"library.update.section"}}]}}"#;
+        assert!(parse_event(activity).is_none());
+        let episode = r#"{"NotificationContainer":{"type":"timeline","size":1,"TimelineEntry":[{"identifier":"com.plexapp.plugins.library","sectionID":"1","itemID":"55","type":4,"state":0,"metadataState":"created"}]}}"#;
+        assert!(parse_event(episode).is_none());
     }
 }

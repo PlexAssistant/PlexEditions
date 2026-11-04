@@ -65,14 +65,20 @@ pub struct Library {
 pub fn movies_from_section(body: &Value, library: &str) -> Vec<Movie> {
     metadata_list(body)
         .into_iter()
-        .filter_map(|item| movie_from_item(item, library))
+        .filter_map(|item| {
+            let movie = movie_from_item(item);
+            movie.map(|mut movie| {
+                if movie.library.is_empty() {
+                    movie.library = library.to_string();
+                }
+                movie
+            })
+        })
         .collect()
 }
 
-pub fn movie_from_metadata(body: &Value, library: &str) -> Option<Movie> {
-    metadata_list(body)
-        .into_iter()
-        .find_map(|item| movie_from_item(item, library))
+pub fn movie_from_metadata(body: &Value) -> Option<Movie> {
+    metadata_list(body).into_iter().find_map(movie_from_item)
 }
 
 fn metadata_list(body: &Value) -> Vec<&Value> {
@@ -83,7 +89,7 @@ fn metadata_list(body: &Value) -> Vec<&Value> {
         .unwrap_or_default()
 }
 
-fn movie_from_item(item: &Value, library: &str) -> Option<Movie> {
+fn movie_from_item(item: &Value) -> Option<Movie> {
     if item.get("type").and_then(Value::as_str) != Some("movie") {
         return None;
     }
@@ -123,7 +129,7 @@ fn movie_from_item(item: &Value, library: &str) -> Option<Movie> {
     Some(Movie {
         rating_key,
         title,
-        library: library.to_string(),
+        library: json_string(item, "librarySectionTitle").unwrap_or_default(),
         edition_title,
         file_name,
         embedded_title,

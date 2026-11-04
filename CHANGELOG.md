@@ -6,6 +6,7 @@
 
 - The published image carried the stub binary from the dependency-caching layer, so every command exited silently. The crate is now forced to rebuild.
 - Cut and release tokens in file names now match regardless of case (`EXTENDED` reads as Extended).
+- `editions new` now follows library timeline frames (`itemID`, type 1), the shape this server actually sends; an edition is retried until the media analysis finishes.
 
 ## [0.1.0] — 2026-11-04
 
