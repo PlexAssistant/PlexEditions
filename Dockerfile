@@ -18,8 +18,12 @@ COPY locales ./locales
 COPY src ./src
 ARG VERSION=dev
 ENV EDITIONS_VERSION=${VERSION}
+# The stub build above may share a second with this layer's mtime, in
+# which case cargo skips the rebuild and /out keeps the stub binary.
+# Drop this crate's fingerprints so it always recompiles.
 RUN --mount=type=cache,id=cargo-registry,sharing=locked,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-target-${TARGETPLATFORM},target=/src/target \
+    cargo clean --release --target "$(cat /tmp/target)" -p plex-editions && \
     cargo build --release --locked --bin editions --target "$(cat /tmp/target)" && \
     mkdir -p /out && cp "target/$(cat /tmp/target)/release/editions" /out/
 
