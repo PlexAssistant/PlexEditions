@@ -1,5 +1,17 @@
 # 變更紀錄
 
+## [0.1.2] — 2026-11-04
+
+### 新增
+
+- `editions new` 在開始監聽前，先為還沒有 Edition 的電影寫入，連線中斷 30 分鐘後再做一次。
+- `PLEX_TOKEN` 留空時，從 `Preferences.xml` 讀取 token。把 Plex 的資料目錄掛到 `/config`，或用 `PLEX_CONFIG_DIR` 指向存放該檔的目錄。
+- `compose.yaml` 用來跑這個映像。它把 Plex 的資料目錄以唯讀掛上，token 留空。
+
+### 變更
+
+- 還讀不到 token，或伺服器沒有回應時，`editions new` 每 30 分鐘重試一次，不再退出。
+
 ## [0.1.1] — 2026-11-04
 
 ### 修復
@@ -18,5 +30,6 @@
 - `--dry-run` 印出將寫入的 Edition，不改伺服器。
 - `EDITION_LANG` 接受 `en`、`zh`、`zh-TW`、`ja`、`ko`、`ar`、`fr`、`ru`、`es`。譯名在 `locales/edition.json`。
 
+[0.1.2]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.2
 [0.1.1]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.1
 [0.1.0]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.0
