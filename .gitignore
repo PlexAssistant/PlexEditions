@@ -1,0 +1,18 @@
+# Build output
+/target/
+/dist/
+
+# Nix / direnv
+result
+result-*
+.direnv/
+
+# Secrets & local config
+.env
+*.local.yaml
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
