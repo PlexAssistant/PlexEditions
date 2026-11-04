@@ -1,21 +1,14 @@
-mod api;
-mod config;
-mod error;
-mod i18n;
-mod model;
-mod modules;
-mod run;
-mod ws;
-
 use std::process::ExitCode;
-use std::time::Duration;
 
 use clap::{Parser, ValueEnum};
-use tokio::time::sleep;
 use tracing::info;
 
-use crate::config::Config;
-use crate::error::Result;
+use plex_editions::api;
+use plex_editions::config::Config;
+use plex_editions::error::Result;
+use plex_editions::run;
+use plex_editions::startup;
+use plex_editions::ws;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Command {
@@ -39,11 +32,6 @@ struct Cli {
     #[arg(long)]
     dry_run: bool,
 }
-
-/// How often `new` retries while the server is not ready yet. A server
-/// that has not been claimed stays that way for a while, so retrying
-/// quickly would only repeat the same failure.
-const STARTUP_WAIT: Duration = Duration::from_secs(30 * 60);
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -69,18 +57,16 @@ async fn run() -> Result<()> {
     // `new` is a long-running service: Plex or its token may not be ready
     // when the container starts. Retry slowly instead of exiting. `all` and
     // `reset` run once, so they still fail immediately.
-    let mut config = if matches!(cli.command, Command::New) {
-        config_when_ready().await?
-    } else {
-        Config::from_env()?
+    let (mut config, client, name) = match cli.command {
+        Command::New => startup::await_ready("").await?,
+        Command::All | Command::Reset => {
+            let config = Config::from_env()?;
+            let client = api::Client::new(&config.plex_url, &config.plex_token)?;
+            let name = client.friendly_name().await?;
+            (config, client, name)
+        }
     };
     config.dry_run = cli.dry_run;
-    let client = api::Client::new(&config.plex_url, &config.plex_token)?;
-    let name = if matches!(cli.command, Command::New) {
-        server_when_ready(&client).await?
-    } else {
-        client.friendly_name().await?
-    };
     info!("connected to {name}");
     match cli.command {
         Command::All => {
@@ -106,31 +92,4 @@ async fn run() -> Result<()> {
         Command::New => ws::listen(&config, &client).await?,
     }
     Ok(())
-}
-
-/// Load the config, retrying while the token cannot be read yet. The Plex
-/// data directory gains `PlexOnlineToken` only after the server is claimed.
-async fn config_when_ready() -> Result<Config> {
-    loop {
-        match Config::from_env() {
-            Ok(config) => return Ok(config),
-            Err(err) => {
-                info!(error = %err, wait_secs = STARTUP_WAIT.as_secs(), "config not ready");
-                sleep(STARTUP_WAIT).await;
-            }
-        }
-    }
-}
-
-/// Ask the server its name, retrying while it refuses the connection.
-async fn server_when_ready(client: &api::Client) -> Result<String> {
-    loop {
-        match client.friendly_name().await {
-            Ok(name) => return Ok(name),
-            Err(err) => {
-                info!(error = %err, wait_secs = STARTUP_WAIT.as_secs(), "plex not ready");
-                sleep(STARTUP_WAIT).await;
-            }
-        }
-    }
 }

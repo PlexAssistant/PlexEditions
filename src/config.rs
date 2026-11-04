@@ -69,11 +69,22 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self> {
-        let plex_url = env::var("PLEX_URL")
-            .map(|value| value.trim().trim_end_matches('/').to_string())
-            .map_err(|_| Error::Config("PLEX_URL is required".into()))?;
+        Self::from_env_with_url("")
+    }
+
+    /// Like [`Self::from_env`], but an unset `PLEX_URL` falls back to
+    /// `default_url`. An empty default keeps the variable required;
+    /// embedders that run next to Plex pass their own address.
+    pub fn from_env_with_url(default_url: &str) -> Result<Self> {
+        let set = env::var("PLEX_URL").ok();
+        let raw = set.as_deref().map_or(default_url.trim(), str::trim);
+        let plex_url = raw.trim_end_matches('/').to_string();
         if plex_url.is_empty() {
-            return Err(Error::Config("PLEX_URL is empty".into()));
+            return Err(Error::Config(if set.is_some() {
+                "PLEX_URL is empty".into()
+            } else {
+                "PLEX_URL is required".into()
+            }));
         }
         // An explicit token wins. Otherwise read it from the Plex data
         // directory, so a container can mount that directory instead of
