@@ -1,6 +1,6 @@
 # 變更紀錄
 
-## [Unreleased]
+## [0.1.0] — 2026-11-04
 
 ### 新增
 
@@ -9,3 +9,5 @@
 - `editions new` 監聽新電影，連線中斷後重連。
 - `--dry-run` 印出將寫入的 Edition，不改伺服器。
 - `EDITION_LANG` 接受 `en`、`zh`、`zh-TW`、`ja`、`ko`、`ar`、`fr`、`ru`、`es`。譯名在 `locales/edition.json`。
+
+[0.1.0]: https://github.com/PlexAssistant/PlexEditions/releases/tag/v0.1.0
