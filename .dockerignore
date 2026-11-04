@@ -1,0 +1,12 @@
+.git/
+.github/
+.direnv/
+target/
+dist/
+*.md
+.env
+*.local.yaml
+flake.nix
+flake.lock
+Justfile
+.envrc
