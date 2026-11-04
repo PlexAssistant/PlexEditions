@@ -8,3 +8,4 @@
 - `editions reset` clears editions in movie libraries and unlocks the field.
 - `editions new` listens for new movies and reconnects after a dropped socket.
 - `--dry-run` prints the edition that would be written.
+- `EDITION_LANG` accepts `en`, `zh`, `zh-TW`, `ja`, `ko`, `ar`, `fr`, `ru`, and `es`. Labels are in `locales/edition.json`.

@@ -16,16 +16,21 @@ mod video;
 use regex::Regex;
 use std::sync::OnceLock;
 
-use crate::config::Language;
+use crate::i18n::Language;
 use crate::model::Movie;
 
+/// Plex stores the edition title in a 255-character column; a longer
+/// write fails, so the composed text is capped first.
+const EDITION_MAX_CHARS: usize = 255;
+
 pub fn render(movie: &Movie, modules: &[String], language: Language, separator: &str) -> String {
-    modules
+    let edition: String = modules
         .iter()
         .filter_map(|module| part(module, movie, language))
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
-        .join(separator)
+        .join(separator);
+    edition.chars().take(EDITION_MAX_CHARS).collect()
 }
 
 fn part(module: &str, movie: &Movie, language: Language) -> Option<String> {
@@ -107,5 +112,16 @@ mod tests {
             " · ",
         );
         assert_eq!(text, "REMUX · 4K");
+    }
+
+    #[test]
+    fn caps_the_edition_at_the_column_limit() {
+        let mut long = movie();
+        long.countries = (0..80)
+            .map(|index| format!("United States {index}"))
+            .collect();
+        let modules: Vec<String> = (0..14).map(|_| "country".into()).collect();
+        let text = render(&long, &modules, Language::En, " · ");
+        assert!(text.chars().count() <= 255);
     }
 }

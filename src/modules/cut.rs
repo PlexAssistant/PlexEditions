@@ -1,61 +1,5 @@
 use super::search;
-use crate::config::Language;
-
-const CUTS: &[(&str, &str, &str)] = &[
-    (
-        r"\b(Theatrical Cut|Theatrical)\b|院线版|院线|公映版|公映",
-        "Theatrical Cut",
-        "院线版",
-    ),
-    (
-        r"\b(Director's Cut|DC)\b|导演剪辑版|导演剪辑",
-        "Director's Cut",
-        "导演剪辑版",
-    ),
-    (
-        r"\b(Producer's Cut)\b|制片人剪辑版|制片人剪辑",
-        "Producer's Cut",
-        "制片人剪辑版",
-    ),
-    (
-        r"\b(Extended Cut|Extended)\b|加长版|加长",
-        "Extended Cut",
-        "加长版",
-    ),
-    (
-        r"\b(Unrated Cut|Unrated)\b|未分级版|未分级",
-        "Unrated Cut",
-        "未分级版",
-    ),
-    (
-        r"\b(The Final Cut|Final Cut)\b|最终剪辑版|最终剪辑",
-        "Final Cut",
-        "最终剪辑版",
-    ),
-    (r"\b(Television Cut)\b|电视版", "Television Cut", "电视版"),
-    (
-        r"\b(International Cut)\b|国际版",
-        "International Cut",
-        "国际版",
-    ),
-    (
-        r"\b(Home Video Cut)\b|家庭录像版",
-        "Home Video Cut",
-        "家庭录像版",
-    ),
-    (r"\b(Rough Cut)\b|初剪版", "Rough Cut", "初剪版"),
-    (
-        r"\b(Workprint Cut|Workprint)\b|工作版",
-        "Workprint Cut",
-        "工作版",
-    ),
-    (
-        r"\b(Fan Edit)\b|粉丝剪辑版|粉丝剪辑",
-        "Fan Edit",
-        "粉丝剪辑版",
-    ),
-    (r"\b(Redux)\b", "Redux", ""),
-];
+use crate::i18n::{self, Language};
 
 pub fn cut(file_name: &str, embedded_title: Option<&str>, language: Language) -> Option<String> {
     label_of(file_name, language)
@@ -63,18 +7,9 @@ pub fn cut(file_name: &str, embedded_title: Option<&str>, language: Language) ->
 }
 
 fn label_of(text: &str, language: Language) -> Option<String> {
-    CUTS.iter().find_map(|(pattern, english, chinese)| {
-        if search(pattern, text) {
-            let label = if language == Language::Zh {
-                *chinese
-            } else {
-                *english
-            };
-            Some(label.to_string())
-        } else {
-            None
-        }
-    })
+    i18n::cuts()
+        .into_iter()
+        .find_map(|entry| search(entry.pattern, text).then(|| i18n::text(language, entry.labels)))
 }
 
 #[cfg(test)]
@@ -92,16 +27,20 @@ mod tests {
             Some("导演剪辑版")
         );
         assert_eq!(
-            cut("Movie.DC.mkv", None, Language::En).as_deref(),
-            Some("Director's Cut")
+            cut("Movie.DC.mkv", None, Language::Fr).as_deref(),
+            Some("Version du réalisateur")
         );
-    }
-
-    #[test]
-    fn redux_chinese_label_is_empty() {
         assert_eq!(
-            cut("Movie.Redux.mkv", None, Language::Zh).as_deref(),
-            Some("")
+            cut("Movie.DC.mkv", None, Language::Ru).as_deref(),
+            Some("Режиссёрская версия")
+        );
+        assert_eq!(
+            cut("Movie.DC.mkv", None, Language::Es).as_deref(),
+            Some("Versión del director")
+        );
+        assert_eq!(
+            cut("Movie.DC.mkv", None, Language::Ar).as_deref(),
+            Some("نسخة المخرج")
         );
     }
 }

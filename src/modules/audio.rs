@@ -1,4 +1,4 @@
-use crate::config::Language;
+use crate::i18n::{self, Language};
 
 pub fn audio_codec(display_title: Option<&str>, language: Language) -> Option<String> {
     let display_title = display_title?;
@@ -13,9 +13,9 @@ pub fn audio_codec(display_title: Option<&str>, language: Language) -> Option<St
     } else {
         display_title.to_string()
     };
-    if language == Language::Zh {
-        info = info.replace("Mono", "单声道").replace("Stereo", "立体声");
-    }
+    info = info
+        .replace("Mono", i18n::term(language, "mono"))
+        .replace("Stereo", i18n::term(language, "stereo"));
     Some(info)
 }
 
@@ -32,6 +32,14 @@ mod tests {
         assert_eq!(
             audio_codec(Some("Commentary (Stereo)"), Language::Zh).as_deref(),
             Some("立体声")
+        );
+        assert_eq!(
+            audio_codec(Some("Commentary (Stereo)"), Language::Fr).as_deref(),
+            Some("Stéréo")
+        );
+        assert_eq!(
+            audio_codec(Some("Commentary (Mono)"), Language::Ar).as_deref(),
+            Some("أحادي")
         );
     }
 }

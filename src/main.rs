@@ -1,6 +1,7 @@
 mod api;
 mod config;
 mod error;
+mod i18n;
 mod model;
 mod modules;
 mod run;
@@ -62,10 +63,7 @@ async fn run() -> Result<()> {
     config.dry_run = cli.dry_run;
     let client = api::Client::new(&config.plex_url, &config.plex_token)?;
     let name = client.friendly_name().await?;
-    match config.language {
-        config::Language::Zh => info!("已成功连接到服务器：{name}"),
-        config::Language::En => info!("Successfully connected to server: {name}"),
-    }
+    info!("connected to {name}");
     match cli.command {
         Command::All => {
             let stats = run::run(&config, &client, run::Mode::All).await?;

@@ -42,7 +42,7 @@ EDITION_SKIP_LIBRARIES=
 EDITION_SEPARATOR= · 
 ```
 
-`EDITION_MODULES` 與 `EDITION_SKIP_LIBRARIES` 以 `;` 或 `；` 分隔。`EDITION_LANG` 為 `zh` 或 `en`。劇集不處理。設定名是簡體，與程式接受的字串一致。
+`EDITION_MODULES` 與 `EDITION_SKIP_LIBRARIES` 以 `;` 或 `；` 分隔。`EDITION_LANG` 為 `en`、`zh`、`zh-TW`、`ja`、`ko`、`ar`、`fr`、`ru`、`es`。劇集不處理。設定名是簡體，與程式接受的字串一致。譯名在 `locales/edition.json`。
 
 ```
 editions all --dry-run

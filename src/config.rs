@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::env;
 
 use crate::error::{Error, Result};
+use crate::i18n::Language;
 
 /// Labels the user can put in `EDITION_MODULES`. English ids are accepted too.
 const MODULE_ALIASES: &[(&str, &str)] = &[
@@ -52,24 +53,6 @@ pub const DEFAULT_MODULES: &[&str] = &[
     "contentrating",
     "size",
 ];
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Language {
-    Zh,
-    En,
-}
-
-impl Language {
-    fn parse(raw: &str) -> Result<Self> {
-        match raw.trim().to_ascii_lowercase().as_str() {
-            "zh" => Ok(Self::Zh),
-            "en" => Ok(Self::En),
-            other => Err(Error::Config(format!(
-                "EDITION_LANG must be zh or en, got {other}"
-            ))),
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {

@@ -42,7 +42,7 @@ EDITION_SKIP_LIBRARIES=
 EDITION_SEPARATOR= · 
 ```
 
-`EDITION_MODULES` and `EDITION_SKIP_LIBRARIES` split on `;` or `；`. `EDITION_LANG` is `zh` or `en`. Shows are not included.
+`EDITION_MODULES` and `EDITION_SKIP_LIBRARIES` split on `;` or `；`. `EDITION_LANG` is `en`, `zh`, `zh-TW`, `ja`, `ko`, `ar`, `fr`, `ru`, or `es`. Shows are not included. Labels live in `locales/edition.json`.
 
 ```
 editions all --dry-run

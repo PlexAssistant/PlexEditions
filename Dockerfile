@@ -14,6 +14,7 @@ RUN --mount=type=cache,id=cargo-registry,sharing=locked,target=/usr/local/cargo/
     rustup target add "$(cat /tmp/target)" && \
     cargo build --release --locked --bin editions --target "$(cat /tmp/target)" && \
     rm -rf src
+COPY locales ./locales
 COPY src ./src
 ARG VERSION=dev
 ENV EDITIONS_VERSION=${VERSION}

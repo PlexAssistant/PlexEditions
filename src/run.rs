@@ -3,7 +3,7 @@ use std::time::Duration;
 use tracing::info;
 
 use crate::api::Client;
-use crate::config::{Config, Language};
+use crate::config::Config;
 use crate::error::Result;
 use crate::model::Movie;
 use crate::modules;
@@ -39,23 +39,9 @@ pub async fn run(config: &Config, client: &Client, mode: Mode) -> Result<Stats> 
                 continue;
             }
         };
-        match (mode, config.language) {
-            (Mode::All, Language::Zh) => {
-                info!("处理库：{} 电影数：{}", library.title, movies.len())
-            }
-            (Mode::All, Language::En) => info!(
-                "Processing library: {} Movie count: {}",
-                library.title,
-                movies.len()
-            ),
-            (Mode::Reset, Language::Zh) => {
-                info!("重置库：{} 电影数：{}", library.title, movies.len())
-            }
-            (Mode::Reset, Language::En) => info!(
-                "Resetting library: {} Movie count: {}",
-                library.title,
-                movies.len()
-            ),
+        match mode {
+            Mode::All => info!("processing {} ({} movies)", library.title, movies.len()),
+            Mode::Reset => info!("resetting {} ({} movies)", library.title, movies.len()),
         }
         for movie in movies {
             match apply(config, client, mode, &movie).await {
@@ -106,10 +92,7 @@ async fn write_if_empty(config: &Config, client: &Client, movie: &Movie) -> Resu
     if edition.is_empty() {
         return Ok(Action::Skipped);
     }
-    let line = match config.language {
-        Language::Zh => format!("{}：{edition}", movie.title),
-        Language::En => format!("{}: {edition}", movie.title),
-    };
+    let line = format!("{}: {edition}", movie.title);
     if config.dry_run {
         info!("{line}");
         return Ok(Action::Wrote);
@@ -123,10 +106,7 @@ async fn clear_if_present(config: &Config, client: &Client, movie: &Movie) -> Re
     if movie.edition_title.is_none() {
         return Ok(Action::Skipped);
     }
-    let line = match config.language {
-        Language::Zh => format!("已重置{}", movie.title),
-        Language::En => format!("Reset {}", movie.title),
-    };
+    let line = format!("reset {}", movie.title);
     if config.dry_run {
         info!("{line}");
         return Ok(Action::Wrote);
