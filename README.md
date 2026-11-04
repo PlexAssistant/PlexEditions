@@ -1,6 +1,6 @@
 # PlexEditions
 
-English | [正體中文](README.zh-TW.md)
+English | [简体中文](README.zh-CN.md) | [正體中文](README.zh-TW.md)
 
 Writes a movie's edition title through the Plex HTTP API.
 

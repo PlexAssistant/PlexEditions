@@ -1,6 +1,6 @@
 # PlexEditions
 
-[English](README.md) | 正體中文
+[English](README.md) | [简体中文](README.zh-CN.md) | 正體中文
 
 透過 Plex 的 HTTP API，把選定模組寫進電影的 Edition。
 
