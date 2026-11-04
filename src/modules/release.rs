@@ -56,4 +56,16 @@ mod tests {
             Some("Édition Blu-ray")
         );
     }
+
+    #[test]
+    fn matches_regardless_of_case() {
+        assert_eq!(
+            release("Movie.imax.mkv", None, Language::En).as_deref(),
+            Some("IMAX Edition")
+        );
+        assert_eq!(
+            release("movie special edition 1080p.mkv", None, Language::Zh).as_deref(),
+            Some("特别版")
+        );
+    }
 }

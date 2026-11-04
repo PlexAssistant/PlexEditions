@@ -69,8 +69,11 @@ fn regex(pattern: &'static str) -> &'static Regex {
     if let Some(compiled) = cache.get(pattern) {
         return compiled;
     }
+    // Filenames shout their tokens (EXTENDED, imax); the word lists are
+    // mixed-case. Match without case, like the patterns were designed for.
+    let insensitive = format!("(?i){pattern}");
     let compiled: &'static Regex =
-        Box::leak(Box::new(Regex::new(pattern).expect("module pattern")));
+        Box::leak(Box::new(Regex::new(&insensitive).expect("module pattern")));
     cache.insert(pattern, compiled);
     compiled
 }

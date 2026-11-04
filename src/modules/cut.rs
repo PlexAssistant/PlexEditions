@@ -43,4 +43,17 @@ mod tests {
             Some("نسخة المخرج")
         );
     }
+
+    #[test]
+    fn matches_regardless_of_case() {
+        // Release names shout the tokens; the word lists are mixed-case.
+        assert_eq!(
+            cut("Movie.EXTENDED.1080p.mkv", None, Language::Zh).as_deref(),
+            Some("加长版")
+        );
+        assert_eq!(
+            cut("Movie.theatrical.mkv", None, Language::En).as_deref(),
+            Some("Theatrical Cut")
+        );
+    }
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The published image carried the stub binary from the dependency-caching layer, so every command exited silently. The crate is now forced to rebuild.
+- Cut and release tokens in file names now match regardless of case (`EXTENDED` reads as Extended).
+
 ## [0.1.0] — 2026-11-04
 
 ### Added
