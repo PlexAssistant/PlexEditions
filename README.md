@@ -53,6 +53,8 @@ editions new
 
 `all` and `reset` exit when the libraries are done. `new` listens on the Plex notification socket and reconnects if it drops. Without that socket, run `all` from cron.
 
+The same settings are in [compose.yaml](compose.yaml), which runs `new` and restarts it. `PLEX_URL` has to be reachable from the container; `127.0.0.1` only works when the container shares the host network. Fill the libraries already scanned with `docker compose run --rm editions all`.
+
 ## License
 
 [GPL-3.0](LICENSE)

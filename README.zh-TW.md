@@ -53,6 +53,8 @@ editions new
 
 `all` 與 `reset` 跑完即結束。`new` 聽 Plex 的通知 socket，斷線後重連。沒有這條 socket 時，用 cron 跑 `all`。
 
+同樣的設定在 [compose.yaml](compose.yaml)，預設跑 `new` 並在退出後重啟。`PLEX_URL` 必須從容器內連得到；`127.0.0.1` 只在容器與宿主共用網路時有效。已入庫的電影用 `docker compose run --rm editions all` 補上。
+
 ## 授權
 
 [GPL-3.0](LICENSE)
